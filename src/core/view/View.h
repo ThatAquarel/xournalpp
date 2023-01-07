@@ -47,6 +47,7 @@ class ImageView;
 class StrokeView;
 class TextView;
 
-constexpr double OPACITY_NO_AUDIO = 0.3;
+constexpr double OPACITY_NO_AUDIO = 1.0;
+constexpr double OPACTIY_HIDDEN = 0.1;
 };  // namespace view
 };  // namespace xoj

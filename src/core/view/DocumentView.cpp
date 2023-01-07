@@ -86,6 +86,7 @@ void DocumentView::drawPage(PageRef page, cairo_t* cr, bool dontRenderEditingStr
 
     xoj::view::Context context{cr, (xoj::view::NonAudioTreatment)this->markAudioStroke,
                                (xoj::view::EditionTreatment) !this->dontRenderEditingStroke, xoj::view::NORMAL_COLOR};
+
     for (Layer* layer: *page->getLayers()) {
         if (layer->isVisible()) {
             xoj::view::LayerView layerView(layer);

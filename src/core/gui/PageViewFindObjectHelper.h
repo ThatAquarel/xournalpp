@@ -165,3 +165,29 @@ protected:
         return false;
     }
 };
+
+constexpr int OPACITY_SPOILER = 12;
+
+class SpoilerObject: public BaseSelectObject {
+public:
+    SpoilerObject(XojPageView* view): BaseSelectObject(view) {}
+
+    ~SpoilerObject() override = default;
+
+public:
+    bool at(double x, double y) override { return BaseSelectObject::at(x, y); }
+
+protected:
+    bool checkElement(Element* e) override {
+        if (e->getType() != ELEMENT_STROKE) {
+            return false;
+        }
+
+        Stroke* s = (Stroke*)e;
+        s->setHidden(!s->getHidden());
+
+        view->rerenderElement(e);
+
+        return true;
+    }
+};

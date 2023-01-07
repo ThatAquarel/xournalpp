@@ -445,6 +445,9 @@ auto XojPageView::onButtonPressEvent(const PositionInputData& pos) -> bool {
             SelectObject select(this);
             select.at(x, y);
         } else if (h->getToolType() == TOOL_PLAY_OBJECT) {
+            SpoilerObject spoiler(this);
+            spoiler.at(x, y);
+
             PlayObject play(this);
             play.at(x, y);
             if (play.playbackStatus) {

@@ -12,6 +12,8 @@
 #include "DebugShowRepaintBounds.h"  // for IF_DEBUG_REPAINT
 #include "View.h"                    // for Context, ElementView
 
+#include "model/Stroke.h"
+
 using namespace xoj::view;
 
 LayerView::LayerView(const Layer* layer): layer(layer) {}
@@ -40,6 +42,11 @@ void LayerView::draw(const Context& ctx) const {
         });
 
         if (e->intersectsArea(minX, minY, maxX - minX, maxY - minY)) {
+            if (e->getType() == ELEMENT_STROKE) {
+                Stroke *s = (Stroke*)e;
+                s->setHidden(s->getHidden() && ctx.fadeOutNonAudio);
+            }
+
             ElementView::createFromElement(e)->draw(ctx);
             IF_DEBUG_REPAINT(drawn++;);
         }

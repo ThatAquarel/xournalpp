@@ -107,6 +107,14 @@ public:
      */
     void setFill(int fill);
 
+
+    /**
+     * Option to show or hide spoiled content
+     */
+    bool getHidden() const;
+    void setHidden(bool hidden);
+
+
     void addPoint(const Point& p);
     void setLastPoint(double x, double y);
     void setFirstPoint(double x, double y);
@@ -217,6 +225,11 @@ private:
      *   1: The shape is nearly fully transparent filled
      */
     int fill = -1;
+
+    /**
+     * Option to show spoiler
+     */
+    bool hidden = false;
 
     StrokeCapStyle capStyle = StrokeCapStyle::ROUND;
 };

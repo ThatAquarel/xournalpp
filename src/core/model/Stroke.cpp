@@ -221,6 +221,13 @@ auto Stroke::getFill() const -> int { return fill; }
  */
 void Stroke::setFill(int fill) { this->fill = fill; }
 
+/**
+ * Option to show spoiler
+ */
+auto Stroke::getHidden() const -> bool { return hidden; }
+
+void Stroke::setHidden(bool hidden) { this->hidden = hidden; }
+
 void Stroke::setWidth(double width) { this->width = width; }
 
 auto Stroke::getWidth() const -> double { return this->width; }

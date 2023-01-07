@@ -189,6 +189,10 @@ void StrokeView::draw(const Context& ctx) const {
             groupAlpha = std::max(MINIMAL_ALPHA, groupAlpha);
         }
 
+        if (s->getHidden()) {
+            groupAlpha *= OPACTIY_HIDDEN;
+        }
+
         // Blit the mask onto the given cairo context
         cairo_set_operator(ctx.cr, highlighter ? CAIRO_OPERATOR_MULTIPLY : CAIRO_OPERATOR_OVER);
 
