@@ -12,34 +12,40 @@
 #pragma once
 
 #include <cstddef>  // for size_t
-#include <memory>   // for unique_ptr
+#include <functional>
+#include <memory>  // for unique_ptr
+#include <optional>
+#include <variant>
 
-#include <gtk/gtk.h>  // for GtkWidget
+#include "model/BackgroundImage.h"
+#include "model/DocumentChangeType.h"  // for DocumentChangeType
+#include "model/DocumentListener.h"    // for DocumentListener
+#include "model/PageRef.h"             // for PageRef
+#include "model/PageType.h"            // for PageType
 
-#include "control/pagetype/PageTypeMenu.h"  // for ApplyPageTypeSource, Page...
-#include "model/DocumentChangeType.h"       // for DocumentChangeType
-#include "model/DocumentListener.h"         // for DocumentListener
-#include "model/PageRef.h"                  // for PageRef
+#include "filesystem.h"  // for path
 
 class Control;
 class UndoAction;
-class PageType;
-class PageTypeInfo;
 
-class PageBackgroundChangeController:
-        public PageTypeMenuChangeListener,
-        public DocumentListener,
-        public PageTypeApplyListener {
+class PageBackgroundChangeController: public DocumentListener {
 public:
     PageBackgroundChangeController(Control* control);
     ~PageBackgroundChangeController() override = default;
 
 public:
-    virtual void changeCurrentPageBackground(PageType& pageType);
-    void changeCurrentPageBackground(PageTypeInfo* info) override;
-    void changeAllPagesBackground(const PageType& pt);
-    void insertNewPage(size_t position);
-    GtkWidget* getMenu();
+    void changeCurrentPageBackground(const PageType& pageType);
+    /**
+     * @brief (Un)set the page type for newly created pages
+     * @param pageType The new page type.
+     *      Passing std::nullopt will unset the page type.
+     *      If the page type is not set, newly created pages will have the same type as the current page.
+     */
+    void setPageTypeForNewPages(const std::optional<PageType>& pageType);
+    void applyCurrentPageBackgroundToAll();
+    void applyBackgroundToAllPages(const PageType& pt);
+    void changePdfPagesBackground(const fs::path& filepath, bool attachPdf);
+    void insertNewPage(size_t position, bool shouldScrollToPage = true);
 
     // DocumentListener
 public:
@@ -50,44 +56,29 @@ public:
     void pageDeleted(size_t page) override;
     void pageSelected(size_t page) override;
 
-    // PageTypeApplyListener
-public:
-    void applySelectedPageBackground(bool allPages, ApplyPageTypeSource src) override;
-
 private:
     /**
      * Copy the background from source to target
      */
     static void copyBackgroundFromOtherPage(PageRef target, PageRef source);
 
-    /**
-     * Apply the background to the page, asks for PDF Page or Image, if needed
-     *
-     * @return true on success, false if the user cancels
-     */
-    bool applyPageBackground(PageRef page, const PageType& pt);
+    /// Asks the user to choose a pdf page, and calls callback
+    void askForPdfBackground(std::function<void(size_t)> callback);
 
-    /**
-     * Apply a new PDF Background, asks the user which page should be selected
-     *
-     * @return true on success, false if the user cancels
-     */
-    bool applyPdfBackground(PageRef page);
+    /// Asks the user to choose an image background, and calls callback
+    void askForImageBackground(std::function<void(BackgroundImage)> callback);
 
+    /// Nothing, a BackgroundImage or the number of a pdf page
+    using CommitParameter = std::variant<std::nullopt_t, BackgroundImage, size_t>;
     /**
-     * Apply a new Image Background, asks the user which image should be inserted
-     *
-     * @return true on success, false if the user cancels
+     * Applies pageType to page number pageNum.
+     *      If pageType.isImage(), a BackgroundImage must be provided
+     *      If pageType.isPdf(), a pdf page number must be provided in the std::variant
      */
-    bool applyImageBackground(PageRef page);
-
-    /**
-     * Perform the page type change.
-     */
-    auto commitPageTypeChange(size_t pageNum, const PageType& pageType) -> std::unique_ptr<UndoAction>;
+    auto commitPageTypeChange(size_t pageNum, const PageType& pageType, CommitParameter param = std::nullopt)
+            -> std::unique_ptr<UndoAction>;
 
 private:
     Control* control = nullptr;
-    PageTypeMenu currentPageType;
-    bool ignoreEvent = false;
+    std::optional<PageType> pageTypeForNewPages;
 };

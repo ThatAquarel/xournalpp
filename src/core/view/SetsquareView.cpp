@@ -10,7 +10,9 @@
 
 #include "model/Setsquare.h"          // for Setsquare
 #include "model/Stroke.h"             // for Stroke
+#include "util/Assert.h"              // for xoj_assert
 #include "util/raii/CairoWrappers.h"  // for CairoSaveGuard
+#include "util/safe_casts.h"          // for floor_cast
 #include "view/Repaintable.h"         // for Repaintable
 #include "view/View.h"                // for Context
 
@@ -18,7 +20,7 @@
 
 using namespace xoj::view;
 
-
+// all lengths are in centimeter
 constexpr double FONT_SIZE = .2;
 constexpr double CIRCLE_RAD = .3;
 constexpr double TICK_SMALL = .1;
@@ -34,6 +36,7 @@ constexpr int MIN_VMARK_LARGE = 5;
 constexpr int OFFSET_FROM_SEMICIRCLE = 2.;
 constexpr double ZERO_MARK_TICK = .5;
 constexpr int SKIPPED_HMARKS = 8;
+constexpr const char* FONT_FAMILY = "Arial";
 
 SetsquareView::SetsquareView(const Setsquare* setsquare, Repaintable* parent, ZoomControl* zoomControl):
         GeometryToolView(setsquare, parent, zoomControl) {
@@ -45,6 +48,7 @@ SetsquareView::~SetsquareView() noexcept { this->unregisterFromPool(); };
 void SetsquareView::on(FlagDirtyRegionRequest, const Range& rg) { this->parent->flagDirtyRegion(rg); }
 
 void SetsquareView::on(UpdateValuesRequest, double h, double rot, cairo_matrix_t m) {
+    xoj_assert_message(h > 0, "Non-positive setsquare height");
     height = h;
     rotation = rot;
     matrix = m;
@@ -54,7 +58,7 @@ void SetsquareView::on(UpdateValuesRequest, double h, double rot, cairo_matrix_t
     minVmark = (std::abs(horPosVmarks - HMARK_POS - TICK_SMALL / 2.) < MIN_DIST_FROM_HMARK - TICK_SMALL / 2.) ?
                        MIN_VMARK_LARGE :
                        MIN_VMARK_SMALL;
-    maxVmark = static_cast<int>(std::floor(cathete(radius, horPosVmarks) * 10.0)) - OFFSET_FROM_SEMICIRCLE;
+    maxVmark = floor_cast<int>(cathete(radius, horPosVmarks) * 10.0) - OFFSET_FROM_SEMICIRCLE;
 
     // The following computation of the angular marks offset is based on experimentation.
     offset = std::max(MIN_OFFSET_ANG_MARKS,
@@ -62,7 +66,7 @@ void SetsquareView::on(UpdateValuesRequest, double h, double rot, cairo_matrix_t
     if (std ::abs(radius - std::round(radius)) < .2) {  // larger offset when semicircle comes close to big hmarks
         offset = std::max(offset, static_cast<int>(24.0 / radius));
     }
-    maxHmark = static_cast<int>(std::floor(height * 10.0)) - SKIPPED_HMARKS;
+    maxHmark = floor_cast<int>(height * 10.0) - SKIPPED_HMARKS;
 }
 
 void SetsquareView::deleteOn(SetsquareView::FinalizationRequest, const Range& rg) {
@@ -73,15 +77,15 @@ void SetsquareView::drawGeometryTool(cairo_t* cr) const {
     xoj::util::CairoSaveGuard saveGuard(cr);
     cairo_scale(cr, CM, CM);
 
-    cairo_set_line_width(cr, LINE_WIDTH);
+    cairo_set_line_width(cr, LINE_WIDTH_IN_CM);
     cairo_set_fill_rule(cr, CAIRO_FILL_RULE_EVEN_ODD);
-    cairo_select_font_face(cr, "Arial", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(cr, FONT_FAMILY, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, FONT_SIZE);
 
     // clip to slightly enlarged setsquare for performance reasons
-    const double enlargedHeight = this->height + LINE_WIDTH;
-    cairo_move_to(cr, enlargedHeight, -LINE_WIDTH);
-    cairo_line_to(cr, -enlargedHeight, -LINE_WIDTH);
+    const double enlargedHeight = this->height + LINE_WIDTH_IN_CM;
+    cairo_move_to(cr, enlargedHeight, -LINE_WIDTH_IN_CM);
+    cairo_line_to(cr, -enlargedHeight, -LINE_WIDTH_IN_CM);
     cairo_line_to(cr, .0, enlargedHeight);
     cairo_close_path(cr);
     cairo_clip(cr);
@@ -102,8 +106,8 @@ void SetsquareView::drawGeometryTool(cairo_t* cr) const {
 void SetsquareView::drawDisplays(cairo_t* cr) const {
     xoj::util::CairoSaveGuard saveGuard(cr);
     cairo_transform(cr, &matrix);
-    cairo_set_line_width(cr, LINE_WIDTH);
-    cairo_select_font_face(cr, "Arial", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_line_width(cr, LINE_WIDTH_IN_CM);
+    cairo_select_font_face(cr, FONT_FAMILY, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, FONT_SIZE);
 
     cairo_set_source_rgb(cr, .0, .5, .5);  // turquoise

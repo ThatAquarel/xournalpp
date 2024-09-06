@@ -11,12 +11,14 @@
 
 #pragma once
 
-#include <cstddef>  // for size_t
-#include <map>      // for map
-#include <memory>   // for make_shared, shared_ptr
-#include <string>   // for string, basic_string
-#include <utility>  // for pair
-#include <vector>   // for vector
+#include <array>     // for array
+#include <cstddef>   // for size_t
+#include <map>       // for map
+#include <memory>    // for make_shared, shared_ptr
+#include <optional>  // for optional
+#include <string>    // for string, basic_string
+#include <utility>   // for pair
+#include <vector>    // for vector
 
 #include <gdk/gdk.h>                      // for GdkInputSource, GdkD...
 #include <glib.h>                         // for gchar, gboolean, gint
@@ -29,11 +31,13 @@
 
 #include "LatexSettings.h"  // for LatexSettings
 #include "SettingsEnums.h"  // for InputDeviceTypeOption
+#include "ViewModes.h"      // for ViewModes
 #include "filesystem.h"     // for path
 
 struct Palette;
 
 constexpr auto DEFAULT_GRID_SIZE = 14.17;
+constexpr unsigned int MAX_SPACES_FOR_TAB = 8U;
 
 class ButtonConfig;
 class InputDevice;
@@ -118,7 +122,13 @@ private:
     void loadButtonConfig();
 
 public:
+    // View Mode
+    bool loadViewMode(ViewModeId mode);
+
     // Getter- / Setter
+    const std::vector<ViewMode>& getViewModes() const;
+    ViewModeId getActiveViewMode() const;
+
     bool isPressureSensitivity() const;
     void setPressureSensitivity(gboolean presureSensitivity);
 
@@ -173,12 +183,6 @@ public:
     void setDisplayDpi(int dpi);
     int getDisplayDpi() const;
 
-    /**
-     * Dark theme for white-coloured icons
-     */
-    void setDarkTheme(bool dark);
-    bool isDarkTheme() const;
-
     void setAreStockIconsUsed(bool use);
     bool areStockIconsUsed() const;
 
@@ -203,6 +207,8 @@ public:
     int getMainWndHeight() const;
     bool isMainWndMaximized() const;
 
+    bool isFullscreen() const;
+
     bool isSidebarVisible() const;
     void setSidebarVisible(bool visible);
 
@@ -224,6 +230,9 @@ public:
     const bool isFilepathInTitlebarShown() const;
     void setFilepathInTitlebarShown(const bool shown);
 
+    const bool isPageNumberInTitlebarShown() const;
+    void setPageNumberInTitlebarShown(const bool shown);
+
     void setShowPairedPages(bool showPairedPages);
     bool isShowPairedPages() const;
 
@@ -232,6 +241,9 @@ public:
 
     void setPairsOffset(int numOffset);
     int getPairsOffset() const;
+
+    void setEmptyLastPageAppend(EmptyLastPageAppendType emptyLastPageAppend);
+    EmptyLastPageAppendType getEmptyLastPageAppend() const;
 
     void setViewColumns(int numColumns);
     int getViewColumns() const;
@@ -264,13 +276,20 @@ public:
 
     bool getAddVerticalSpace() const;
     void setAddVerticalSpace(bool space);
-    int getAddVerticalSpaceAmount() const;
-    void setAddVerticalSpaceAmount(int pixels);
+    int getAddVerticalSpaceAmountAbove() const;
+    void setAddVerticalSpaceAmountAbove(int pixels);
+    int getAddVerticalSpaceAmountBelow() const;
+    void setAddVerticalSpaceAmountBelow(int pixels);
 
     bool getAddHorizontalSpace() const;
     void setAddHorizontalSpace(bool space);
-    int getAddHorizontalSpaceAmount() const;
-    void setAddHorizontalSpaceAmount(int pixels);
+    int getAddHorizontalSpaceAmountRight() const;
+    void setAddHorizontalSpaceAmountRight(int pixels);
+    int getAddHorizontalSpaceAmountLeft() const;
+    void setAddHorizontalSpaceAmountLeft(int pixels);
+
+    bool getUnlimitedScrolling() const;
+    void setUnlimitedScrolling(bool enable);
 
     bool getDrawDirModsEnabled() const;
     void setDrawDirModsEnabled(bool enable);
@@ -304,8 +323,17 @@ public:
     StylusCursorType getStylusCursorType() const;
     void setStylusCursorType(StylusCursorType stylusCursorType);
 
+    EraserVisibility getEraserVisibility() const;
+    void setEraserVisibility(EraserVisibility eraserVisibility);
+
     IconTheme getIconTheme() const;
     void setIconTheme(IconTheme iconTheme);
+
+    void setThemeVariant(ThemeVariant theme);
+    ThemeVariant getThemeVariant() const;
+
+    SidebarNumberingStyle getSidebarNumberingStyle() const;
+    void setSidebarNumberingStyle(SidebarNumberingStyle numberingStyle);
 
     bool isHighlightPosition() const;
     void setHighlightPosition(bool highlight);
@@ -328,16 +356,18 @@ public:
     bool isScrollbarFadeoutDisabled() const;
     void setScrollbarFadeoutDisabled(bool disable);
 
+    bool isAudioDisabled() const;
+    void setAudioDisabled(bool disable);
+
     std::string const& getDefaultSaveName() const;
     void setDefaultSaveName(const std::string& name);
 
-    ButtonConfig* getButtonConfig(int id);
+    std::string const& getDefaultPdfExportName() const;
+    void setDefaultPdfExportName(const std::string& name);
 
-    std::string const& getFullscreenHideElements() const;
-    void setFullscreenHideElements(std::string elements);
+    ButtonConfig* getButtonConfig(unsigned int id);
 
-    std::string const& getPresentationHideElements() const;
-    void setPresentationHideElements(std::string elements);
+    void setViewMode(ViewModeId mode, ViewMode ViewMode);
 
     Color getBorderColor() const;
     void setBorderColor(Color color);
@@ -347,6 +377,9 @@ public:
 
     Color getBackgroundColor() const;
     void setBackgroundColor(Color color);
+
+    Color getActiveSelectionColor() const;
+    void setActiveSelectionColor(Color color);
 
     // Re-render pages if document zoom differs from the last render zoom by the given threshold.
     double getPDFPageRerenderThreshold() const;
@@ -373,9 +406,11 @@ public:
     fs::path const& getAudioFolder() const;
     void setAudioFolder(fs::path audioFolder);
 
+    static constexpr PaDeviceIndex AUDIO_INPUT_SYSTEM_DEFAULT = -1;
     PaDeviceIndex getAudioInputDevice() const;
     void setAudioInputDevice(PaDeviceIndex deviceIndex);
 
+    static constexpr PaDeviceIndex AUDIO_OUTPUT_SYSTEM_DEFAULT = -1;
     PaDeviceIndex getAudioOutputDevice() const;
     void setAudioOutputDevice(PaDeviceIndex deviceIndex);
 
@@ -532,7 +567,14 @@ public:
     void setStabilizerAveragingMethod(StrokeStabilizer::AveragingMethod averagingMethod);
     void setStabilizerPreprocessor(StrokeStabilizer::Preprocessor preprocessor);
 
-    const Palette& getColorPalette();
+    fs::path const& getColorPaletteSetting();
+    void setColorPaletteSetting(fs::path palettePath);
+
+    void setNumberOfSpacesForTab(unsigned int numberSpaces);
+    unsigned int getNumberOfSpacesForTab() const;
+
+    void setUseSpacesAsTab(bool useSpaces);
+    bool getUseSpacesAsTab() const;
 
 public:
     // Custom settings
@@ -584,6 +626,11 @@ private:
     bool zoomGesturesEnabled{};
 
     /**
+     *  If fullscreen is active
+     */
+    bool fullscreenActive{};
+
+    /**
      *  If the sidebar is visible
      */
     bool showSidebar{};
@@ -609,9 +656,24 @@ private:
     StylusCursorType stylusCursorType;
 
     /**
+     * Visibility of eraser cursor
+     */
+    EraserVisibility eraserVisibility;
+
+    /**
      * Icon Theme
      */
     IconTheme iconTheme;
+
+    /**
+     * Follow system's default theme variant or force one or the other
+     */
+    ThemeVariant themeVariant;
+
+    /**
+     * Sidebar page number style
+     */
+    SidebarNumberingStyle sidebarNumberingStyle;
 
     /**
      * Show a colored circle around the cursor
@@ -640,12 +702,6 @@ private:
     double cursorHighlightBorderWidth{};
 
     /**
-     * If the user uses a dark-themed DE, he should enable this
-     * (white icons)
-     */
-    bool darkTheme{};
-
-    /**
      * If stock icons are used instead of Xournal++ icons when available
      */
     bool useStockIcons{};
@@ -661,6 +717,11 @@ private:
     bool filepathShownInTitlebar{};
 
     /**
+     * If the page number is shown in titlebar
+     */
+    bool pageNumberShownInTitlebar{};
+
+    /**
      *  Hide the scrollbar
      */
     ScrollbarHideType scrollbarHideType;
@@ -669,6 +730,11 @@ private:
      * Disable scrollbar fade out (overlay scrolling)
      */
     bool disableScrollbarFadeout{};
+
+    /**
+     * Disable the audio system
+     */
+    bool disableAudio{};
 
     /**
      *  The selected Toolbar name
@@ -758,6 +824,11 @@ private:
     int numPairsOffset{};
 
     /**
+     * Preference for appending an empty last page to the document
+     */
+    EmptyLastPageAppendType emptyLastPageAppend{};
+
+    /**
      *  Use when fixed number of columns
      */
     int numColumns{};
@@ -814,18 +885,34 @@ private:
     bool addHorizontalSpace{};
 
     /**
-     * How much allowance to scroll outside the page display area (either side of )
+     * How much allowance to scroll outside the page display area on the right
      */
-    int addHorizontalSpaceAmount{};
+    int addHorizontalSpaceAmountRight{};
+
+    /**
+     * How much allowance to scroll outside the page display area on the left
+     */
+    int addHorizontalSpaceAmountLeft{};
 
     /**
      * Allow scroll outside the page display area (vertical)
      */
     bool addVerticalSpace{};
 
-    /** How much allowance to scroll outside the page display area (above and below)
+    /**
+     * How much allowance to scroll outside the page display area above
      */
-    int addVerticalSpaceAmount{};
+    int addVerticalSpaceAmountAbove{};
+
+    /**
+     * How much allowance to scroll outside the page display area below
+     */
+    int addVerticalSpaceAmountBelow{};
+
+    /**
+     * Enables unlimited scrolling, which automatically adds maximum space to scroll outside the page
+     */
+    bool unlimitedScrolling{};
 
     /**
      * Emulate modifier keys based on initial direction of drawing tool ( for Rectangle, Ellipse etc. )
@@ -852,17 +939,18 @@ private:
      */
     std::string defaultSaveName;  // should be string - don't change to path
 
+    std::string defaultPdfExportName;
+
     /**
      * The button config
      */
-    ButtonConfig* buttonConfig[BUTTON_COUNT]{};
+    std::array<std::unique_ptr<ButtonConfig>, BUTTON_COUNT> buttonConfig;
 
     /**
-     * Which gui elements are hidden if you are in Fullscreen mode,
-     * separated by a colon (,)
+     * View-modes. Predefined: 0=default, 1=fullscreen, 2=presentation
      */
-    std::string fullscreenHideElements;
-    std::string presentationHideElements;
+    ViewModeId activeViewMode;
+    std::vector<ViewMode> viewModes;
 
     /**
      *  The count of pages which will be cached
@@ -892,6 +980,11 @@ private:
      * Color for Text selection, Stroke selection etc.
      */
     Color selectionMarkerColor{};
+
+    /**
+     * Color for active selection.
+     */
+    Color activeSelectionColor{};
 
     /**
      * The color for Xournal page background
@@ -1056,9 +1149,11 @@ private:
     StrokeStabilizer::AveragingMethod stabilizerAveragingMethod{};
     StrokeStabilizer::Preprocessor stabilizerPreprocessor{};
 
+    fs::path colorPaletteSetting;
+
     /**
-     * @brief Color Palette for tool colors
-     *
+     * Tab control settings
      */
-    std::unique_ptr<Palette> palette;
+    bool useSpacesForTab{};
+    unsigned int numberOfSpacesForTab{};
 };

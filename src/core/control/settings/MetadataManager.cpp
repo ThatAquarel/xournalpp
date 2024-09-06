@@ -33,7 +33,7 @@ void MetadataManager::deleteMetadataFile(fs::path const& path) {
 
     try {
         fs::remove(path);
-    } catch (fs::filesystem_error const&) { g_warning("Could not delete metadata file %s", path.string().c_str()); }
+    } catch (const fs::filesystem_error&) { g_warning("Could not delete metadata file %s", path.string().c_str()); }
 }
 
 /**
@@ -72,7 +72,7 @@ auto MetadataManager::loadList() -> vector<MetadataEntry> {
                 data.push_back(entry);
             }
         }
-    } catch (fs::filesystem_error& e) {
+    } catch (const fs::filesystem_error& e) {
         XojMsgBox::showErrorToUser(nullptr, e.what());
         return data;
     }
@@ -114,7 +114,7 @@ auto MetadataManager::loadMetadataFile(fs::path const& path, fs::path const& fil
         // Not valid
         return entry;
     }
-    entry.page = strtoll(line.substr(5).c_str(), nullptr, 10);
+    entry.page = static_cast<int>(strtoll(line.substr(5).c_str(), nullptr, 10));
 
     if (!getline(infile, line) || line.length() < 6 || line.substr(0, 5) != "zoom=") {
         deleteMetadataFile(path);
@@ -141,7 +141,7 @@ auto MetadataManager::getForFile(fs::path const& file) -> MetadataEntry {
         }
     }
 
-    for (int i = 20; i < static_cast<int>(files.size()); i++) {
+    for (size_t i = 20; i < files.size(); i++) {
         auto path = files[i].metadataFile;
         deleteMetadataFile(path);
     }

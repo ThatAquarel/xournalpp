@@ -2,15 +2,17 @@
 
 #include <algorithm>  // for min
 #include <array>      // for array
+#include <memory>
 #include <utility>    // for move, pair
 
-#include <cairo.h>        // for cairo_surface_destroy
-#include <gdk/gdk.h>      // for gdk_cairo_set_sourc...
-#include <glib-object.h>  // for g_object_unref
-#include <glib.h>         // for g_assert, guchar
+#include <cairo.h>    // for cairo_surface_destroy
+#include <gdk/gdk.h>  // for gdk_cairo_set_sourc...
+#include <glib.h>     // for guchar
 
 #include "model/Element.h"                        // for Element, ELEMENT_IMAGE
+#include "util/Assert.h"                          // for xoj_assert
 #include "util/Rectangle.h"                       // for Rectangle
+#include "util/raii/GObjectSPtr.h"                // for GObjectSPtr
 #include "util/serializing/ObjectInputStream.h"   // for ObjectInputStream
 #include "util/serializing/ObjectOutputStream.h"  // for ObjectOutputStream
 
@@ -30,8 +32,8 @@ Image::~Image() {
     }
 }
 
-auto Image::clone() const -> Element* {
-    auto* img = new Image();
+auto Image::clone() const -> ElementPtr {
+    auto img = std::make_unique<Image>();
 
     img->x = this->x;
     img->y = this->y;
@@ -73,31 +75,30 @@ void Image::setImage(std::string&& data) {
 
     // FIXME: awful hack to try to parse the format
     std::array<char*, 4096> buffer{};
-    GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
+    xoj::util::GObjectSPtr<GdkPixbufLoader> loader(gdk_pixbuf_loader_new(), xoj::util::adopt);
     size_t remaining = this->data.size();
     while (remaining > 0) {
         size_t readLen = std::min(remaining, buffer.size());
-        if (!gdk_pixbuf_loader_write(loader, reinterpret_cast<const guchar*>(this->data.c_str()), readLen, nullptr))
+        if (!gdk_pixbuf_loader_write(loader.get(), reinterpret_cast<const guchar*>(this->data.c_str()), readLen,
+                                     nullptr))
             break;
         remaining -= readLen;
 
         // Try to determine the format early, if possible
-        this->format = gdk_pixbuf_loader_get_format(loader);
+        this->format = gdk_pixbuf_loader_get_format(loader.get());
         if (this->format) {
             break;
         }
     }
-    gdk_pixbuf_loader_close(loader, nullptr);
+    gdk_pixbuf_loader_close(loader.get(), nullptr);
     // if the format was not determined early, it can probably be determined now
     if (!this->format) {
-        this->format = gdk_pixbuf_loader_get_format(loader);
+        this->format = gdk_pixbuf_loader_get_format(loader.get());
     }
-    g_assert(this->format != nullptr && "could not parse the image format!");
+    xoj_assert_message(this->format != nullptr, "could not parse the image format!");
 
     // the format is owned by the pixbuf, so create a copy
     this->format = gdk_pixbuf_format_copy(this->format);
-
-    g_object_unref(loader);
 }
 
 void Image::setImage(GdkPixbuf* img) {
@@ -129,32 +130,31 @@ void Image::setImage(cairo_surface_t* image) {
 }
 
 auto Image::getImage() const -> cairo_surface_t* {
-    g_assert(data.length() > 0 && "image has no data, cannot render it!");
+    xoj_assert_message(data.length() > 0, "image has no data, cannot render it!");
     if (this->image == nullptr) {
-        GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
-        gdk_pixbuf_loader_write(loader, reinterpret_cast<const guchar*>(this->data.c_str()), this->data.length(),
+        xoj::util::GObjectSPtr<GdkPixbufLoader> loader(gdk_pixbuf_loader_new(), xoj::util::adopt);
+        gdk_pixbuf_loader_write(loader.get(), reinterpret_cast<const guchar*>(this->data.c_str()), this->data.length(),
                                 nullptr);
-        bool success = gdk_pixbuf_loader_close(loader, nullptr);
-        g_assert(success && "errors in loading image data!");
+        [[maybe_unused]] bool success = gdk_pixbuf_loader_close(loader.get(), nullptr);
+        xoj_assert_message(success, "errors in loading image data!");
 
-        GdkPixbuf* pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
-        g_assert(pixbuf != nullptr);
-        this->imageSize = {gdk_pixbuf_get_width(pixbuf), gdk_pixbuf_get_height(pixbuf)};
+        GdkPixbuf* tmp = gdk_pixbuf_loader_get_pixbuf(loader.get());
+        xoj_assert(tmp != nullptr);
+        xoj::util::GObjectSPtr<GdkPixbuf> pixbuf(gdk_pixbuf_apply_embedded_orientation(tmp), xoj::util::adopt);
+
+        this->imageSize = {gdk_pixbuf_get_width(pixbuf.get()), gdk_pixbuf_get_height(pixbuf.get())};
 
         // TODO: pass in window once this code is refactored into ImageView
-        this->image = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, gdk_pixbuf_get_width(pixbuf),
-                                                 gdk_pixbuf_get_height(pixbuf));
-        g_assert(this->image != nullptr);
+        this->image = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, this->imageSize.first, this->imageSize.second);
+        xoj_assert(this->image != nullptr);
 
         // Paint the pixbuf on to the surface
         // NOTE: we do this manually instead of using gdk_cairo_surface_create_from_pixbuf
         // since this does not work in CLI mode.
         cairo_t* cr = cairo_create(this->image);
-        gdk_cairo_set_source_pixbuf(cr, pixbuf, 0, 0);
+        gdk_cairo_set_source_pixbuf(cr, pixbuf.get(), 0, 0);
         cairo_paint(cr);
         cairo_destroy(cr);
-
-        g_object_unref(loader);
     }
 
     return this->image;

@@ -1,7 +1,6 @@
 #include "LayerView.h"
 
 #include <memory>  // for unique_ptr
-#include <vector>  // for vector
 
 #include <cairo.h>  // for cairo_clip_extents, cairo_rectangle
 #include <glib.h>   // for g_message
@@ -30,7 +29,7 @@ void LayerView::draw(const Context& ctx) const {
     double maxY;
     cairo_clip_extents(ctx.cr, &minX, &minY, &maxX, &maxY);
 
-    for (auto& e: layer->getElements()) {
+    for (auto const& e: layer->getElements()) {
 
         IF_DEBUG_REPAINT({
             auto cr = ctx.cr;

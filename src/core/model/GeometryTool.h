@@ -20,7 +20,7 @@
 constexpr static double HALF_CM = 14.17;
 constexpr static double CM = 2. * HALF_CM;
 
-enum GeometryToolType { SETSQUARE };
+enum GeometryToolType { SETSQUARE, COMPASS };
 
 /**
  * @brief A class that models a geometry tool
@@ -49,7 +49,7 @@ public:
      * @param x the x-coordinate (in pt) of the rotation center
      * @param y the y-coordinate (in pt) of the rotation center
      */
-    GeometryTool(double height, double rotation, double x, double y, Range toolRange);
+    GeometryTool(double height, double rotation, double x, double y);
 
     virtual ~GeometryTool();
 
